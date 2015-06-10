@@ -1,13 +1,6 @@
 package com.suse.saltstack.netapi.parser;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.TypeAdapter;
+import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
@@ -28,11 +21,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
 import java.text.ParseException;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Parser for Saltstack responses.
@@ -75,6 +66,7 @@ public class JsonParser<T> {
                 .registerTypeAdapter(Date.class, new DateAdapter().nullSafe())
                 .registerTypeAdapter(Stats.class, new StatsDeserializer())
                 .registerTypeAdapter(Arguments.class, new ArgumentsDeserializer())
+                .registerTypeAdapterFactory(new OptionalTypeAdapterFactory())
                 .create();
     }
 
@@ -111,6 +103,42 @@ public class JsonParser<T> {
                 throw new JsonParseException(e);
             }
         }
+    }
+
+    private class OptionalTypeAdapterFactory implements TypeAdapterFactory {
+        public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> typeToken) {
+            Type type = typeToken.getType();
+            if (typeToken.getRawType() != Optional.class ||
+                    !(type instanceof ParameterizedType)) {
+                return null;
+            }
+
+            Type elementType = ((ParameterizedType) type).getActualTypeArguments()[0];
+            TypeAdapter<?> elementAdapter = gson.getAdapter(TypeToken.get(elementType));
+            return (TypeAdapter<T>) optionalAdapter(elementAdapter);
+        }
+
+        private <A> TypeAdapter<Optional<A>> optionalAdapter(TypeAdapter<A> innerAdapter){
+            return new TypeAdapter<Optional<A>>() {
+                public Optional<A> read(JsonReader in) throws IOException {
+                    System.out.println(in.peek());
+                    if (in.peek() == JsonToken.NULL) {
+                        in.nextNull();
+                        return Optional.empty();
+                    }
+                    A value = innerAdapter.read(in);
+
+                    return Optional.of(value);
+                }
+
+                public void write(JsonWriter out, Optional<A> optional) throws IOException {
+                    if (optional.isPresent()) {
+                        innerAdapter.write(out, optional.get());
+                    }
+                }
+            };
+        }
+
     }
 
     /**

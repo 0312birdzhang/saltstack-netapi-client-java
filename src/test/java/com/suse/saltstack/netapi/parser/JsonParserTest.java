@@ -1,6 +1,7 @@
 package com.suse.saltstack.netapi.parser;
 
 import com.google.gson.JsonParseException;
+import com.google.gson.reflect.*;
 import com.suse.saltstack.netapi.datatypes.Arguments;
 import com.suse.saltstack.netapi.datatypes.Job;
 import com.suse.saltstack.netapi.datatypes.ScheduledJob;
@@ -12,18 +13,15 @@ import com.suse.saltstack.netapi.datatypes.cherrypy.ServerThread;
 import com.suse.saltstack.netapi.datatypes.cherrypy.Stats;
 import com.suse.saltstack.netapi.results.Result;
 import com.suse.saltstack.netapi.datatypes.Token;
-import java.util.Date;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.Map;
+
+import java.util.*;
+
 import org.junit.Test;
 
+import javax.swing.text.html.*;
 import java.io.InputStream;
-import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.*;
 
 /**
  * Json parser unit tests.
@@ -200,6 +198,23 @@ public class JsonParserTest {
         assertEquals("*", job.getTarget());
         assertEquals("glob", job.getTargetType());
         assertEquals("lucid", job.getUser());
+    }
+
+    class OptionalTest {
+        public Optional<String> nullString;
+        public Optional<String> valueString;
+    }
+
+    @Test
+    public void testOptionalParser() {
+        InputStream is = this.getClass()
+                .getResourceAsStream("/optional_parser_test.json");
+        JsonParser<OptionalTest> parser = new JsonParser<>(new TypeToken<OptionalTest>(){});
+        OptionalTest result = parser.parse(is);
+        assertFalse(result.nullString.isPresent());
+        result.valueString.ifPresent((value) ->{
+           assertEquals("string with value", value);
+        });
     }
 
     @Test
